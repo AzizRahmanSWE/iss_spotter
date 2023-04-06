@@ -9,24 +9,35 @@ const request = require('request');
  *  - An error, if any (nullable)
  *  - The IP address as a string (null if error). Example: "162.245.144.188"
  */
-// const fetchMyIP = function(cb) {
+const fetchMyIP = function(cb) {
 
-//   request("https://api.ipify.org?format=json", (error, response, body) => {
-//     if (error) {
-//       cb(error, null);
-//       return;
-//     }
+  request("https://api.ipify.org?format=json", (error, response, body) => {
+    if (error) {
+      cb(error, null);
+      return;
+    }
 
-//     if (response.statusCode !== 200) {
-//       const msg = `Status Code ${response.statusCode} when fetching IP. Response: ${body}`;
-//       cb(Error(msg), null);
-//       return;
-//     }
+    if (response.statusCode !== 200) {
+      const msg = `Status Code ${response.statusCode} when fetching IP. Response: ${body}`;
+      cb(Error(msg), null);
+      return;
+    }
 
-//     const ip = JSON.parse(body).ip;
-//     cb(null, ip);
-//   });
-// };
+    const ip = JSON.parse(body).ip;
+    cb(null, ip);
+  });
+};
+
+/**
+ * Makes a single API request to retrieve the lat/lng for a given IPv4 address.
+ * Input:
+ *   - The ip (ipv4) address (string)
+ *   - A callback (to pass back an error or the lat/lng object)
+ * Returns (via Callback):
+ *   - An error, if any (nullable)
+ *   - The lat and lng as an object (null if error). Example:
+ *     { latitude: '49.27670', longitude: '-123.13000' }
+ */
 
 const fetchCoordsByIP = function(ip, cb) {
 
@@ -61,6 +72,7 @@ const fetchCoordsByIP = function(ip, cb) {
  *   - The fly over times as an array of objects (null if error). Example:
  *     [ { risetime: 134564234, duration: 600 }, ... ]
  */
+
 const fetchISSFlyOverTimes = function(coords, cb) {
   const url = `https://iss-flyover.herokuapp.com/json/?lat=${coords.latitude}&lon=${coords.longitude}`;
 
@@ -80,6 +92,41 @@ const fetchISSFlyOverTimes = function(coords, cb) {
   });
 };
 
+/**
+ * Orchestrates multiple API requests in order to determine the next 5 upcoming ISS fly overs for the user's current location.
+ * Input:
+ *   - A callback with an error or results. 
+ * Returns (via Callback):
+ *   - An error, if any (nullable)
+ *   - The fly-over times as an array (null if error):
+ *     [ { risetime: <number>, duration: <number> }, ... ]
+ */ 
+
+const nextISSTimesForMyLocation = function(cb) {
+  fetchMyIP((error, ip) => {
+      if (error) {
+        return cb(error, null);
+    }
+
+    fetchCoordsByIP(ip, (error, loc) => {
+      if (error) {
+        return cb(error, null);
+      }
+
+      fetchISSFlyOverTimes(loc, (error, nextPasses) => {
+        if (error) {
+          return cb(error, null);
+        }
+    
+        cb(null, nextPasses);
+      });
+    });
+  });
+};
+// Only export nextISSTimesForMyLocation and not the other three (API request) functions.
+// This is because they are not needed by external modules.
+
 // module.exports = { fetchMyIP };
 // module.exports = { fetchCoordsByIP };
-module.exports = { fetchISSFlyOverTimes };
+// module.exports = { fetchISSFlyOverTimes };
+module.exports = { nextISSTimesForMyLocation };
